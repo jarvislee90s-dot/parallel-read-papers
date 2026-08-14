@@ -1,0 +1,28 @@
+% PaperTranslate 对开双栏对照 PDF 模板
+% 两个 A4 竖版横向拼接：左栏英文全文、右栏中文全文，段落对齐（paracol）
+% 由 make_bilingual.py 填充 TITLE / AUTHORS / BODY 三处占位符
+\documentclass[11pt]{ctexart}
+% 页面 = 两个 A4 竖版（210mm x 2）+ 边距
+\usepackage[paperwidth=420mm,paperheight=297mm,margin=16mm]{geometry}
+\usepackage{paracol}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\newcounter{none} % for unnumbered tables（pandoc \LTcaptype{none} 技巧配套）
+% pandoc 输出需要的辅助宏
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\newcommand{\pandocbounded}[1]{\begin{center}#1\end{center}}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+\setlength{\columnsep}{24pt}
+\pagestyle{plain}
+\title{%%TITLE%%}
+\author{%%AUTHORS%%}
+\date{}
+\begin{document}
+\maketitle
+\begin{paracol}{2}
+%%BODY%%
+\end{paracol}
+\end{document}

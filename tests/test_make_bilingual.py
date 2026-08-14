@@ -38,3 +38,21 @@ def test_pair_blocks_mismatch_detected():
     pairs, errors = mb.pair_blocks(en, zh)
     assert pairs is None
     assert any("数量不一致" in e for e in errors)
+
+def test_blocks_to_paracol_has_left_right():
+    en = mb.split_blocks(_read("sample_en.md"))
+    zh = mb.split_blocks(_read("sample_zh.md"))
+    pairs, errors = mb.pair_blocks(en, zh)
+    assert errors == []
+    tex = mb.blocks_to_paracol(pairs)
+    assert "\\begin{leftcolumn}" in tex
+    assert "\\begin{rightcolumn}" in tex
+    assert "leftcolumn*" in tex  # 跨栏标题
+
+def test_blocks_to_paracol_math_kept():
+    en = mb.split_blocks("$$\nE = m c ^ { 2 } \\tag{1}\n$$\n")
+    zh = mb.split_blocks("$$\nE = m c ^ { 2 } \\tag{1}\n$$\n")
+    pairs, _ = mb.pair_blocks(en, zh)
+    tex = mb.blocks_to_paracol(pairs)
+    assert "E = m c" in tex
+    assert "\\tag{1}" in tex
