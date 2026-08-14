@@ -36,3 +36,28 @@ def test_check_images_consistency():
     assert len(v.check_images("![f](images/sample.jpg)\n", "no image\n", img_dir)) >= 1
     # 引用不存在的图 → 报错
     assert len(v.check_images("![f](images/none.jpg)\n", "![f](images/none.jpg)\n", img_dir)) >= 1
+
+def test_check_term_map_warn():
+    md = "这里提到可组合性（composability），后面又出现 composability。"
+    term_map = {"composability": "可组合性"}
+    assert v.check_term_map(md, term_map) == []
+    # 英文术语出现但译文里从未出现对应中文 → WARN
+    bad = "这里提到 composability 但没有中文。"
+    assert len(v.check_term_map(bad, term_map)) >= 1
+
+def test_warn_signals():
+    assert v.warn_signals("normal 中文段落。") == []
+    # 孤立双空格（公式外）
+    assert len(v.warn_signals("a  b  丢符号嫌疑")) >= 1
+    # 疑似未翻译英文长句
+    assert len(v.warn_signals("This is a very long English sentence that remains untranslated here.")) >= 1
+
+def test_run_validation_shape():
+    en = open(SAMPLE_DIR / "sample_en.md", encoding="utf-8").read()
+    zh = open(SAMPLE_DIR / "sample_zh.md", encoding="utf-8").read()
+    result = v.run_validation(en, zh, SAMPLE_DIR)
+    assert set(result.keys()) == {"fail", "warn"}
+    assert isinstance(result["fail"], list)
+    assert isinstance(result["warn"], list)
+    # 样例应全 FAIL 通过（结构一致、无乱码）
+    assert result["fail"] == []
