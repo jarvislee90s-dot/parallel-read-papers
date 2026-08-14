@@ -1,0 +1,18 @@
+# 敏感配置（真实 token 不入库）
+config/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 输出产物
+*.pdf
+out/
+_output/
+temp/
+
+# 测试生成物
+tests/sample/out/
+.pytest_cache/
