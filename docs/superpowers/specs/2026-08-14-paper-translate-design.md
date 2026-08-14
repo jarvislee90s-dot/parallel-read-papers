@@ -186,7 +186,7 @@ PaperTranslate/
 - **冒烟**：`tests/sample/` 小样例 md 跑通 4 个脚本
 - **验证标准**：对开双栏 PDF 段落对齐、公式渲染正确、图表各归各语言；单栏 PDF 编译零错误；validate 全 FAIL 项清零
 
-## 11. 待决项
+## 11. 决策记录
 
-- LICENSE 采用 MIT（待用户最终确认）
-- v1 验收后即进入 v2 迭代（并发 + review agent）
+- **LICENSE：MIT**（已确认，宽松协议，允许自由使用/修改/再分发）
+- **实现范围：本次计划仅覆盖 v1**（单篇顺序翻译 + 四态输出 + validate）；v1 验收后再进入 v2 迭代（并发 + review agent）
