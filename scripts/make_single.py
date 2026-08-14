@@ -6,7 +6,12 @@ from pathlib import Path
 
 
 def zh_md_to_tex(zh_md: Path, resource_dir: Path) -> str:
-    """用 pandoc 把中文 md 转 LaTeX body（保留公式 \\tag 编号）。"""
+    """用 pandoc 把中文 md 转 LaTeX body（保留公式 \\tag 编号）。
+
+    后处理：
+    1. 去掉 pandoc 默认模板输出的 title block + maketitle（与 single.tex 的重复）
+    2. 图片加 width=\\linewidth,keepaspectratio（避免原图超行宽被裁切）
+    """
     cmd = [
         "pandoc", "-f", "markdown", "-t", "latex",
         "--resource-path", str(resource_dir),
@@ -16,7 +21,29 @@ def zh_md_to_tex(zh_md: Path, resource_dir: Path) -> str:
     result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
     if result.returncode != 0:
         raise RuntimeError(f"pandoc 转换失败：{result.stderr}")
-    return result.stdout
+    body = result.stdout
+    # 去掉 pandoc 输出的 title/author/date/maketitle（与 single.tex 模板重复）
+    body = re.sub(
+        r"\\title\{[^}]*\}\s*\\author\{[^}]*\}\s*\\date\{[^}]*\}\s*\\maketitle\s*",
+        "",
+        body,
+        count=1,
+    )
+    # 图片限制最大宽度为行宽（原图按像素渲染可能超界）
+    body = re.sub(
+        r"\\includegraphics(\[keepaspectratio\])?\{",
+        r"\\includegraphics[width=\\linewidth,keepaspectratio]{",
+        body,
+    )
+    # 去掉 \pandocbounded{...} 后多余的 \\（center 块外触发 "There's no line here to end"）
+    body = re.sub(
+        r"(\\pandocbounded\{[^}]*\})\}\\\\",
+        r"\1}",
+        body,
+    )
+    # 把 pandoc 转义的 \textbar{} 还原为竖线 |
+    body = body.replace("\\textbar{}", "|")
+    return body
 
 
 def extract_meta(md_text: str) -> tuple[str, str]:

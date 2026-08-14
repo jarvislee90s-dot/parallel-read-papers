@@ -9,6 +9,53 @@
 \newcounter{none} % for unnumbered tables（pandoc \LTcaptype{none} 技巧配套）
 \usepackage{hyperref}
 \hypersetup{hidelinks}
+% 裸 Unicode 数学符号 → 数学命令（xelatex 正文混排缺字体时会崩 map_char_to_glyph）
+\usepackage{newunicodechar}
+\newunicodechar{Γ}{\ensuremath{\Gamma}}
+\newunicodechar{Δ}{\ensuremath{\Delta}}
+\newunicodechar{Σ}{\ensuremath{\Sigma}}
+\newunicodechar{γ}{\ensuremath{\gamma}}
+\newunicodechar{ω}{\ensuremath{\omega}}
+\newunicodechar{ρ}{\ensuremath{\rho}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{π}{\ensuremath{\pi}}
+\newunicodechar{ι}{\ensuremath{\iota}}
+\newunicodechar{θ}{\ensuremath{\theta}}
+\newunicodechar{τ}{\ensuremath{\tau}}
+\newunicodechar{δ}{\ensuremath{\delta}}
+\newunicodechar{ζ}{\ensuremath{\zeta}}
+\newunicodechar{λ}{\ensuremath{\lambda}}
+\newunicodechar{ν}{\ensuremath{\nu}}
+\newunicodechar{ξ}{\ensuremath{\xi}}
+\newunicodechar{∂}{\ensuremath{\partial}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{≠}{\ensuremath{\neq}}
+\newunicodechar{≺}{\ensuremath{\prec}}
+\newunicodechar{⊆}{\ensuremath{\subseteq}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{∉}{\ensuremath{\notin}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{∪}{\ensuremath{\cup}}
+\newunicodechar{∩}{\ensuremath{\cap}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{⋄}{\ensuremath{\diamond}}
+\newunicodechar{⊲}{\ensuremath{\vartriangleleft}}
+\newunicodechar{▷}{\ensuremath{\triangleright}}
+\newunicodechar{∧}{\ensuremath{\wedge}}
+\newunicodechar{¬}{\ensuremath{\neg}}
+\newunicodechar{⊧}{\ensuremath{\vDash}}
+\newunicodechar{↦}{\ensuremath{\mapsto}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
+\newunicodechar{→}{\ensuremath{\to}}
+\newunicodechar{←}{\ensuremath{\leftarrow}}
+\newunicodechar{⟶}{\ensuremath{\longrightarrow}}
+\newunicodechar{−}{\ensuremath{-}}
+\newunicodechar{ℎ}{\ensuremath{\hbar}}
 % pandoc 输出需要的辅助宏（与 pandoc 默认模板同款）
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \newcommand{\pandocbounded}[1]{\begin{center}#1\end{center}}
@@ -17,5 +64,9 @@
 \date{}
 \begin{document}
 \maketitle
+% 自动从 \section/\subsection 标题生成真 TOC（替代作者手写伪目录）
+\renewcommand{\contentsname}{目录}
+\setcounter{tocdepth}{2}
+\tableofcontents
 %%BODY%%
 \end{document}
