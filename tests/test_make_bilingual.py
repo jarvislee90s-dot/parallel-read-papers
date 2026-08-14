@@ -1,0 +1,40 @@
+from pathlib import Path
+import scripts.make_bilingual as mb
+
+SAMPLE = Path(__file__).parent / "sample"
+
+def _read(name):
+    return (SAMPLE / name).read_text(encoding="utf-8")
+
+def test_split_blocks_types():
+    md = _read("sample_en.md")
+    blocks = mb.split_blocks(md)
+    types = [b["type"] for b in blocks]
+    # 应包含全部块类型
+    assert "heading" in types
+    assert "paragraph" in types
+    assert "math" in types
+    assert "image" in types
+    assert "list" in types
+    assert "table" in types
+
+def test_split_math_keeps_content():
+    md = "before\n$$\nE = m c ^ { 2 } \\tag{1}\n$$\nafter\n"
+    blocks = mb.split_blocks(md)
+    math_blocks = [b for b in blocks if b["type"] == "math"]
+    assert len(math_blocks) == 1
+    assert "E = m c" in math_blocks[0]["content"]
+
+def test_pair_blocks_matching():
+    en_blocks = mb.split_blocks(_read("sample_en.md"))
+    zh_blocks = mb.split_blocks(_read("sample_zh.md"))
+    pairs, errors = mb.pair_blocks(en_blocks, zh_blocks)
+    assert errors == []
+    assert len(pairs) == len(en_blocks)
+
+def test_pair_blocks_mismatch_detected():
+    en = mb.split_blocks("para one\n\n$$a+b$$\n")
+    zh = mb.split_blocks("para one\n")  # 少一块
+    pairs, errors = mb.pair_blocks(en, zh)
+    assert pairs is None
+    assert any("数量不一致" in e for e in errors)
