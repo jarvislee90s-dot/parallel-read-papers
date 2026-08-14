@@ -1,0 +1,21 @@
+% PaperTranslate 中文单栏还原 PDF 模板（ctexart 单栏，arXiv 风格）
+% 由 make_single.py 填充 BODY / TITLE / AUTHORS 三处占位符
+\documentclass[11pt,a4paper]{ctexart}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\newcounter{none} % for unnumbered tables（pandoc \LTcaptype{none} 技巧配套）
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+% pandoc 输出需要的辅助宏（与 pandoc 默认模板同款）
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\newcommand{\pandocbounded}[1]{\begin{center}#1\end{center}}
+\title{%%TITLE%%}
+\author{%%AUTHORS%%}
+\date{}
+\begin{document}
+\maketitle
+%%BODY%%
+\end{document}
