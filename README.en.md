@@ -15,6 +15,8 @@ Translate English paper PDFs into Chinese with **4 output formats** — the high
 
 ## The Side-by-Side PDF (Core Feature)
 
+![Side-by-side bilingual preview](example/bilingual-preview.png)
+
 - **Each column is self-contained**: left = complete English original (title, authors, section headings, body, equations, figures, tables); right = complete Chinese translation of everything
 - **Paragraph-aligned**: every EN/CN paragraph pair starts at the same height; when one side is longer, the other leaves blank space and waits — first lines always align
 - **Formulas & figures per language**: equations show the same `\tag{n}` number on both sides; figures/tables are typeset independently in each column
