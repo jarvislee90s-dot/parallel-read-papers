@@ -246,10 +246,15 @@ def _heading_command(content: str) -> tuple[str, str]:
 
 
 def blocks_to_paracol(pairs: list[tuple[dict, dict]], resource_dir: Path | None = None) -> str:
-    """生成 paracol 左右栏片段。全部用星号（同步）列环境。
+    """生成 paracol 左右栏片段。左栏用星号（同步），右栏用非同步。
 
-    星号环境触发 paracol 同步机制：两栏互相等待，每个对应块的两栏从同一
-    高度开始（段落首行对齐），较长的一侧决定位置，较短侧段落间留白。
+    关键（paracol 同步语义）：`\\begin{leftcolumn*}`（同步）把两栏推到
+    "前一深栏底部"（同步点），左栏从该处放英文块；右栏用**非同步**
+    `\\begin{rightcolumn}`（不带 *），从右栏当前位置（= 同步点）放中文块，
+    因此每个对应块的两栏第一行从同一高度开始（段落首行对齐、底边对齐）。
+    若右栏也用 `*`（同步），同步点会被设为左栏英文块底部，中文块整体低一行，
+    造成"中英文交错"——这是必须避免的。
+    较长的一侧决定同步点，较短侧段落间留白（两栏互相等待）。
     每栏自成一体（左=英文原文、右=中文译文）：
     - 论文标题（level-1）：每栏各自大标题
     - 章节标题（level-2+）：每栏各自 section*/subsection*/subsubsection*
@@ -268,23 +273,23 @@ def blocks_to_paracol(pairs: list[tuple[dict, dict]], resource_dir: Path | None 
                     "\\begin{leftcolumn*}\n"
                     f"{{\\centering\\LARGE\\textbf{{{en_title}}}\\par}}\n"
                     "\\end{leftcolumn*}\n"
-                    "\\begin{rightcolumn*}\n"
+                    "\\begin{rightcolumn}\n"
                     f"{{\\centering\\LARGE\\textbf{{{zh_title}}}\\par}}\n"
-                    "\\end{rightcolumn*}\n"
+                    "\\end{rightcolumn}\n"
                 )
             else:
                 en_name, _ = _heading_command(en["content"])
                 zh_name, _ = _heading_command(zh["content"])
                 out.append(
                     f"\\begin{{leftcolumn*}}\n\\{en_name}*{{{en_title}}}\n\\end{{leftcolumn*}}\n"
-                    f"\\begin{{rightcolumn*}}\n\\{zh_name}*{{{zh_title}}}\n\\end{{rightcolumn*}}\n"
+                    f"\\begin{{rightcolumn}}\n\\{zh_name}*{{{zh_title}}}\n\\end{{rightcolumn}}\n"
                 )
         elif t == "math":
             m = _math_latex(en["content"])
             # 左右各放同一方程（同一 \tag{n}，编号一致）
             out.append(
                 f"\\begin{{leftcolumn*}}\n{m}\n\\end{{leftcolumn*}}\n"
-                f"\\begin{{rightcolumn*}}\n{m}\n\\end{{rightcolumn*}}\n"
+                f"\\begin{{rightcolumn}}\n{m}\n\\end{{rightcolumn}}\n"
             )
         elif t == "image":
             en_img = _image_latex(en["content"], resource_dir) if resource_dir else _image_latex(en["content"], Path("."))
@@ -292,14 +297,14 @@ def blocks_to_paracol(pairs: list[tuple[dict, dict]], resource_dir: Path | None 
             # 左右各放同一图片（图注为各自语言的独立段落块）
             out.append(
                 "\\begin{leftcolumn*}\n" + en_img + "\n\\end{leftcolumn*}\n"
-                "\\begin{rightcolumn*}\n" + zh_img + "\n\\end{rightcolumn*}\n"
+                "\\begin{rightcolumn}\n" + zh_img + "\n\\end{rightcolumn}\n"
             )
         else:
             en_latex = md_to_latex(en["content"])
             zh_latex = md_to_latex(zh["content"])
             out.append(
                 "\\begin{leftcolumn*}\n" + en_latex + "\n\\end{leftcolumn*}\n"
-                "\\begin{rightcolumn*}\n" + zh_latex + "\n\\end{rightcolumn*}\n"
+                "\\begin{rightcolumn}\n" + zh_latex + "\n\\end{rightcolumn}\n"
             )
     return "\n".join(out)
 
