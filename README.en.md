@@ -6,12 +6,12 @@ Translate English paper PDFs into Chinese with **4 output formats** — the high
 
 | Output | File | Description |
 |--------|------|-------------|
-| Side-by-side bilingual PDF | `<title>_bilingual.pdf` | ⭐ English original (left) + Chinese translation (right); each column is self-contained (title, headings, formulas, figures, tables in its own language), paragraph starts aligned — the longer column sets the position, the shorter waits |
-| Chinese single-column PDF | `<title>_single.pdf` | Pure Chinese, restores the original single-column layout (equation numbers preserved) |
-| Chinese Markdown | `<title>_zh.md` | Paragraph-by-paragraph Chinese translation |
-| Bilingual Markdown | `<title>_bilingual.md` | EN/CN two-column table for lightweight reading/editing |
+| Side-by-side bilingual PDF | `<en-title>_bilingual.pdf` | ⭐ English original (left) + Chinese translation (right); each column is self-contained (title, headings, formulas, figures, tables in its own language), paragraph starts aligned — the longer column sets the position, the shorter waits |
+| Chinese single-column PDF | `<zh-title>_single.pdf` | Pure Chinese, restores the original single-column layout (equation numbers preserved) |
+| Chinese Markdown | `<zh-title>_zh.md` | Paragraph-by-paragraph Chinese translation |
+| Bilingual Markdown | `<en-title>_bilingual.md` | EN/CN two-column table for lightweight reading/editing |
 
-> Output files are named after the **paper's full title slug** (e.g. `a-programming-paradigm-for-spatiotemporal-composability_*`), falling back to the input filename when extraction fails.
+> Naming: English-related outputs (bilingual PDF, bilingual Markdown) use the **English title** slug; Chinese-related outputs (Chinese Markdown, single-column PDF) use the **Chinese title** slug (e.g. `a-programming-paradigm-for-spatiotemporal-composability_bilingual.pdf`, `时空可组合性-spatiotemporal-composability-的编程范式_zh.md`); falls back to the input filename when extraction fails.
 
 ## The Side-by-Side PDF (Core Feature)
 

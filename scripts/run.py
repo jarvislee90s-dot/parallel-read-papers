@@ -63,26 +63,27 @@ def run(source: str | Path, outputs: list[str], out_dir: Path, zh_md: Path | Non
                 f"未找到翻译产物 {zh_md_path}。请先按 SKILL.md 流程将 {full_md.name} 翻译为 full_zh.md。"
             )
 
-    # 输出命名：优先论文全文标题 slug（如 a-programming-paradigm-...），
-    # 提取失败回退输入文件名 stem
+    # 输出命名：英文相关输出（对开双栏 PDF/对照版 md）用英文论文标题 slug，
+    # 中文相关输出（中文 md/单栏 PDF）用中文标题 slug；提取失败回退输入文件名 stem
     src_name = Path(source).stem if not Path(source).is_dir() else Path(source).name
-    base = make_bilingual.paper_slug(full_md.read_text(encoding="utf-8"), fallback=src_name)
+    en_base = make_bilingual.paper_slug(full_md.read_text(encoding="utf-8"), fallback=src_name)
+    zh_base = make_bilingual.paper_slug(zh_md_path.read_text(encoding="utf-8"), fallback=en_base)
 
     results: dict[str, Path] = {}
     if "zh_md" in outputs:
-        dst = out_dir / f"{base}_zh.md"
+        dst = out_dir / f"{zh_base}_zh.md"
         shutil.copy2(zh_md_path, dst)
         results["zh_md"] = dst
     if "bilingual_pdf" in outputs:
-        pdf = out_dir / f"{base}_bilingual.pdf"
+        pdf = out_dir / f"{en_base}_bilingual.pdf"
         make_bilingual.render_bilingual_pdf(full_md, zh_md_path, resource_dir, pdf, TEMPLATES_DIR)
         results["bilingual_pdf"] = pdf
     if "single_pdf" in outputs:
-        pdf = out_dir / f"{base}_single.pdf"
+        pdf = out_dir / f"{zh_base}_single.pdf"
         make_single.render_single_pdf(zh_md_path, resource_dir, pdf, TEMPLATES_DIR)
         results["single_pdf"] = pdf
     if "bilingual_md" in outputs:
-        md = out_dir / f"{base}_bilingual.md"
+        md = out_dir / f"{en_base}_bilingual.md"
         make_bilingual_md.make_bilingual_md(full_md, zh_md_path, md)
         results["bilingual_md"] = md
     return results

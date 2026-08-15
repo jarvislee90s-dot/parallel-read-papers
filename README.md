@@ -6,12 +6,15 @@
 
 | 输出 | 文件 | 说明 |
 |------|------|------|
-| 对开双栏中英对照 PDF | `<标题>_bilingual.pdf` | ⭐ 左英文原文、右中文译文，两栏各自完整（标题/章节/公式/图/表各归各语言），段落首行对齐、互相等待 |
-| 中文单栏还原 PDF | `<标题>_single.pdf` | 纯中文，还原原论文单栏排版（公式编号保留） |
-| 纯中文 Markdown | `<标题>_zh.md` | 逐段翻译的中文 md |
-| 对照版 Markdown | `<标题>_bilingual.md` | 左英右中两列表格对照版 |
+| 对开双栏中英对照 PDF | `<英文标题>_bilingual.pdf` | ⭐ 左英文原文、右中文译文，两栏各自完整（标题/章节/公式/图/表各归各语言），段落首行对齐、互相等待 |
+| 中文单栏还原 PDF | `<中文标题>_single.pdf` | 纯中文，还原原论文单栏排版（公式编号保留） |
+| 纯中文 Markdown | `<中文标题>_zh.md` | 逐段翻译的中文 md |
+| 对照版 Markdown | `<英文标题>_bilingual.md` | 左英右中两列表格对照版 |
 
-> 输出文件自动以**论文全文标题 slug** 命名（如 `a-programming-paradigm-for-spatiotemporal-composability_*`），提取失败时回退为输入文件名。
+> 输出文件命名：英文相关输出（对开双栏 PDF、对照版 md）取**英文论文标题** slug，
+> 中文相关输出（中文 md、单栏 PDF）取**中文标题** slug（如
+> `a-programming-paradigm-for-spatiotemporal-composability_bilingual.pdf`、
+> `时空可组合性-spatiotemporal-composability-的编程范式_zh.md`）；提取失败时回退为输入文件名。
 
 ## 对开双栏对照（核心特性）
 
