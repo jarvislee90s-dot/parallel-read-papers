@@ -45,9 +45,11 @@ def test_blocks_to_paracol_has_left_right():
     pairs, errors = mb.pair_blocks(en, zh)
     assert errors == []
     tex = mb.blocks_to_paracol(pairs)
-    assert "\\begin{leftcolumn}" in tex
-    assert "\\begin{rightcolumn}" in tex
-    assert "leftcolumn*" in tex  # 跨栏标题
+    # 全部用星号（同步）列环境：左英文、右中文，两栏互相等待、段落首行对齐
+    assert "\\begin{leftcolumn*}" in tex
+    assert "\\begin{rightcolumn*}" in tex
+    # 无通栏 maketitle（标题改由每栏各自渲染）
+    assert "maketitle" not in tex
 
 def test_blocks_to_paracol_math_kept():
     en = mb.split_blocks("$$\nE = m c ^ { 2 } \\tag{1}\n$$\n")

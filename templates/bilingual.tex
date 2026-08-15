@@ -85,11 +85,9 @@
 \hypersetup{hidelinks}
 \setlength{\columnsep}{24pt}
 \pagestyle{plain}
-\title{%%TITLE%%}
-\author{%%AUTHORS%%}
-\date{}
 \begin{document}
-\maketitle
+% 说明：不再使用 \maketitle 通栏题署。标题/作者由 make_bilingual.py 在
+% 正文内按每栏各自渲染（左英文原文、右中文译文），两栏自成一体。
 \begin{paracol}{2}
 %%BODY%%
 \end{paracol}

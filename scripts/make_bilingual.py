@@ -232,31 +232,75 @@ def _image_latex(content: str, resource_dir: Path) -> str:
     return f"\\includegraphics[width=\\linewidth]{{{path}}}"
 
 
+def _heading_command(content: str) -> tuple[str, str]:
+    """按标题文本的编号前缀推断层级，返回 (命令名, 标题文本)。
+
+    "1. Introduction" → section；"1.1. X" → subsection；"1.2.1. X" → subsubsection；
+    无编号（Abstract/References 等）按 section 处理。
+    """
+    title = re.sub(r"^#{1,6}\s+", "", content).strip()
+    m = re.match(r"^(\d+(?:\.\d+)*)\.?\s+", title)
+    depth = (m.group(1).count(".") + 1) if m else 1
+    name = {1: "section", 2: "subsection", 3: "subsubsection"}.get(depth, "subsubsection")
+    return name, title
+
+
 def blocks_to_paracol(pairs: list[tuple[dict, dict]], resource_dir: Path | None = None) -> str:
-    """生成 paracol 左右栏片段。heading 用跨栏；其余块左右成对。"""
+    """生成 paracol 左右栏片段。全部用星号（同步）列环境。
+
+    星号环境触发 paracol 同步机制：两栏互相等待，每个对应块的两栏从同一
+    高度开始（段落首行对齐），较长的一侧决定位置，较短侧段落间留白。
+    每栏自成一体（左=英文原文、右=中文译文）：
+    - 论文标题（level-1）：每栏各自大标题
+    - 章节标题（level-2+）：每栏各自 section*/subsection*/subsubsection*
+    - 数学/图片：左右各一份（同一公式/同一图，编号一致）
+    - 段落/列表/表格/代码：左英文、右中文
+    """
     out: list[str] = []
     for en, zh in pairs:
         t = en["type"]
         if t == "heading":
-            level = en.get("level", 1)
-            # 用 * 版标题命令：中文标题本身已含编号（如「1. 引言」），避免双编号
-            cmd = {1: "\\section*", 2: "\\subsection*", 3: "\\subsubsection*"}.get(level, "\\subsubsection*")
-            zh_title = re.sub(r"^#{1,6}\s+", "", zh["content"])
-            # 跨栏章节标题：leftcolumn* + rightcolumn*（同步对齐）
-            out.append(f"\\begin{{leftcolumn*}}\n{cmd}{{{zh_title}}}\n\\end{{leftcolumn*}}\n")
+            en_title = re.sub(r"^#{1,6}\s+", "", en["content"]).strip()
+            zh_title = re.sub(r"^#{1,6}\s+", "", zh["content"]).strip()
+            if en.get("level", 1) == 1:
+                # 论文标题：每栏各自大标题块（居中、大号、加粗）
+                out.append(
+                    "\\begin{leftcolumn*}\n"
+                    f"{{\\centering\\LARGE\\textbf{{{en_title}}}\\par}}\n"
+                    "\\end{leftcolumn*}\n"
+                    "\\begin{rightcolumn*}\n"
+                    f"{{\\centering\\LARGE\\textbf{{{zh_title}}}\\par}}\n"
+                    "\\end{rightcolumn*}\n"
+                )
+            else:
+                en_name, _ = _heading_command(en["content"])
+                zh_name, _ = _heading_command(zh["content"])
+                out.append(
+                    f"\\begin{{leftcolumn*}}\n\\{en_name}*{{{en_title}}}\n\\end{{leftcolumn*}}\n"
+                    f"\\begin{{rightcolumn*}}\n\\{zh_name}*{{{zh_title}}}\n\\end{{rightcolumn*}}\n"
+                )
         elif t == "math":
-            out.append(_math_latex(en["content"]))
+            m = _math_latex(en["content"])
+            # 左右各放同一方程（同一 \tag{n}，编号一致）
+            out.append(
+                f"\\begin{{leftcolumn*}}\n{m}\n\\end{{leftcolumn*}}\n"
+                f"\\begin{{rightcolumn*}}\n{m}\n\\end{{rightcolumn*}}\n"
+            )
         elif t == "image":
             en_img = _image_latex(en["content"], resource_dir) if resource_dir else _image_latex(en["content"], Path("."))
             zh_img = _image_latex(zh["content"], resource_dir) if resource_dir else _image_latex(zh["content"], Path("."))
-            # 左右栏各放图片（英文原图/中文同图），栏内流式
-            out.append("\\begin{leftcolumn}\n" + en_img + "\n\\end{leftcolumn}\n"
-                       "\\begin{rightcolumn}\n" + zh_img + "\n\\end{rightcolumn}\n")
+            # 左右各放同一图片（图注为各自语言的独立段落块）
+            out.append(
+                "\\begin{leftcolumn*}\n" + en_img + "\n\\end{leftcolumn*}\n"
+                "\\begin{rightcolumn*}\n" + zh_img + "\n\\end{rightcolumn*}\n"
+            )
         else:
             en_latex = md_to_latex(en["content"])
             zh_latex = md_to_latex(zh["content"])
-            out.append("\\begin{leftcolumn}\n" + en_latex + "\n\\end{leftcolumn}\n"
-                       "\\begin{rightcolumn}\n" + zh_latex + "\n\\end{rightcolumn}\n")
+            out.append(
+                "\\begin{leftcolumn*}\n" + en_latex + "\n\\end{leftcolumn*}\n"
+                "\\begin{rightcolumn*}\n" + zh_latex + "\n\\end{rightcolumn*}\n"
+            )
     return "\n".join(out)
 
 
@@ -271,13 +315,9 @@ def render_bilingual_pdf(en_md: Path, zh_md: Path, resource_dir: Path, output_pd
         raise ValueError("块配对失败：\n" + "\n".join(errors))
 
     body = blocks_to_paracol(pairs, resource_dir)
-    md_text = en_md.read_text(encoding="utf-8")
-    title, authors = _extract_meta(md_text)
+    # 标题/作者由 blocks_to_paracol 按每栏渲染（左英文原文、右中文译文），无需通栏 \maketitle
     template = (Path(template_dir) / "bilingual.tex").read_text(encoding="utf-8")
-    tex = (template
-           .replace("%%TITLE%%", title)
-           .replace("%%AUTHORS%%", authors)
-           .replace("%%BODY%%", body))
+    tex = template.replace("%%BODY%%", body)
 
     output_pdf = Path(output_pdf)
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
@@ -300,24 +340,6 @@ def render_bilingual_pdf(en_md: Path, zh_md: Path, resource_dir: Path, output_pd
     if not output_pdf.exists():
         raise FileNotFoundError(f"未生成 PDF：{output_pdf}")
     return output_pdf
-
-
-def _extract_meta(md_text: str) -> tuple[str, str]:
-    """从英文 md 提取标题与作者（与 make_single 相似，复用逻辑）。"""
-    title = "Untitled"
-    authors = ""
-    for line in md_text.splitlines():
-        m = re.match(r"^#\s+(.+)$", line.strip())
-        if m and title == "Untitled":
-            title = m.group(1).strip()
-            continue
-        if line.strip() and "<sup>" in line and not line.startswith("#") and not authors:
-            authors = line.strip()
-    # 作者行 HTML 上标/下标转 LaTeX 命令（避免 <sup> 作为非法 LaTeX 进 \author{}）
-    # 注意：re.sub 替换串中 \t 会被解释为制表符，必须用 \\ 转义保留反斜杠
-    authors = re.sub(r"<sup>(.*?)</sup>", r"\\textsuperscript{\1}", authors)
-    authors = re.sub(r"<sub>(.*?)</sub>", r"\\textsubscript{\1}", authors)
-    return title, authors
 
 
 def main() -> int:
