@@ -93,4 +93,4 @@ PaperTranslate/
 
 ## 依赖
 - Python 3.10+（`pip install -r requirements.txt`）
-- pandoc、TeX Live（xelatex + ctex）、中文字体
+- pandoc、TeX Live（中文单栏用 xelatex + ctex；对开双栏用 **lualatex** + ctex + paracol，见 `make_bilingual.py` 说明）、中文字体

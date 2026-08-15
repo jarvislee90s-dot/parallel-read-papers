@@ -43,7 +43,21 @@ def zh_md_to_tex(zh_md: Path, resource_dir: Path) -> str:
     )
     # 把 pandoc 转义的 \textbar{} 还原为竖线 |
     body = body.replace("\\textbar{}", "|")
+    # pandoc pipe table 列宽 p{(\linewidth - N\tabcolsep) * \real{f}}
+    # → p{\dimexpr{f}\linewidth - {f*N}\tabcolsep\relax}
+    # （e-TeX \dimexpr 不支持括号表达式，带括号会静默求值为 0，导致表格列重叠；
+    #   N = 2*(列数-1)，@{} 两端无外侧间距）
+    body = re.sub(
+        r"p\{\(\\linewidth - (\d+)\\tabcolsep\) \* \\real\{([0-9.]+)\}\}",
+        lambda m: (
+            f"p{{\\dimexpr{float(m.group(2)):.4f}\\linewidth "
+            f"- {float(m.group(2)) * int(m.group(1)):.4f}\\tabcolsep\\relax}}"
+        ),
+        body,
+    )
     return body
+
+
 
 
 def extract_meta(md_text: str) -> tuple[str, str]:

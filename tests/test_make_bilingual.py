@@ -56,3 +56,37 @@ def test_blocks_to_paracol_math_kept():
     tex = mb.blocks_to_paracol(pairs)
     assert "E = m c" in tex
     assert "\\tag{1}" in tex
+
+def test_strip_toc_section():
+    md = """# Title
+
+## Abstract
+abstract text
+
+## Contents
+1. Introduction ...... 1
+2. Preliminaries ...... 5
+
+## 1. Introduction
+body here
+"""
+    out = mb.strip_toc_section(md)
+    assert "## Contents" not in out
+    assert "Introduction ...... 1" not in out
+    assert "## Abstract" in out
+    assert "## 1. Introduction" in out
+
+
+def test_strip_toc_section_zh_toc():
+    md = "# 标题\n\n## 目录\n1. 引言 ...... 1\n\n## 1. 引言（Introduction）\n正文\n"
+    out = mb.strip_toc_section(md)
+    assert "## 目录" not in out
+    assert "引言 ...... 1" not in out
+    assert "## 1. 引言（Introduction）" in out
+
+
+def test_pair_blocks_list_paragraph_compat():
+    en = mb.split_blocks("para one\n\n- item a\n- item b\n")
+    zh = mb.split_blocks("para one\n\nitem a, item b（翻译成段落）\n")
+    pairs, errors = mb.pair_blocks(en, zh)
+    assert errors == []

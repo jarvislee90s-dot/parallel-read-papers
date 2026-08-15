@@ -1,4 +1,10 @@
-"""对开双栏对照 PDF：英/中 md 块切分配对 → paracol LaTeX → xelatex。"""
+"""对开双栏对照 PDF：英/中 md 块切分配对 → paracol LaTeX → lualatex。
+
+注：用 lualatex 而非 xelatex。xelatex 对正文混排的裸 Unicode 数学符号
+（尤其 CJK 文本中的 ∘/∂/Γ 等）会触发 "bad native font flag in
+map_char_to_glyph" 内部崩溃，lualatex 无此问题且对中文（ctex + fontspec）
+渲染一致。
+"""
 import re
 import subprocess
 from pathlib import Path
@@ -12,7 +18,31 @@ LIST_ITEM = re.compile(r"^([-*+]|\d+\.)\s")
 HEADING_LEVEL = re.compile(r"^#+")
 
 
+def strip_toc_section(md_text: str) -> str:
+    """剔除 Contents/目录 标题段：英文论文的 Table of Contents 目录,译文通常省略。
+
+    若两侧都保留或都省略,双语对照的块配对才会逐块对齐。目录段 = Contents 标题
+    与其后直到下一个标题之间的行(目录条目多为列表/短行)。
+    """
+    lines = md_text.split("\n")
+    out: list[str] = []
+    in_toc = False
+    for line in lines:
+        stripped = line.strip()
+        if not in_toc and re.match(r"^#{1,6}\s+(?:contents|目录)\s*$", stripped, re.I):
+            in_toc = True
+            continue
+        if in_toc:
+            if re.match(r"^#{1,6}\s", stripped):
+                in_toc = False
+            else:
+                continue
+        out.append(line)
+    return "\n".join(out)
+
+
 def split_blocks(md: str) -> list[dict]:
+
     """把 markdown 切成块序列，块为 {'type','content','level'?}。"""
     lines = md.split("\n")
     n = len(lines)
@@ -110,13 +140,17 @@ def split_blocks(md: str) -> list[dict]:
 
 
 def pair_blocks(en_blocks: list[dict], zh_blocks: list[dict]) -> tuple[list[tuple[dict, dict]] | None, list[str]]:
-    """按序配对英文/中文块，校验数量与类型一致。返回 (pairs, errors)。"""
+    """按序配对英文/中文块,校验数量与类型一致。
+
+    list↔paragraph 视为同构可互配(翻译时常把列表翻成段落或反之)。
+    返回 (pairs, errors)。
+    """
     errors: list[str] = []
     if len(en_blocks) != len(zh_blocks):
         return None, [f"块数量不一致：英文 {len(en_blocks)} vs 中文 {len(zh_blocks)}，请检查翻译是否逐段对应"]
     pairs: list[tuple[dict, dict]] = []
     for idx, (en, zh) in enumerate(zip(en_blocks, zh_blocks)):
-        if en["type"] != zh["type"]:
+        if en["type"] != zh["type"] and (en["type"], zh["type"]) not in {("list", "paragraph"), ("paragraph", "list")}:
             errors.append(f"块#{idx} 类型不一致：英文={en['type']} vs 中文={zh['type']}（内容：{en['content'][:40]!r} / {zh['content'][:40]!r}）")
         pairs.append((en, zh))
     if errors:
@@ -147,6 +181,24 @@ def _longtable_to_tabular(latex: str) -> str:
     return latex
 
 
+def _fix_table_widths(latex: str) -> str:
+    """修复 pandoc pipe table 列宽：p{(\\linewidth - N\\tabcolsep) * \\real{f}}。
+
+    pandoc 用 LaTeX3 real 算术（\\real{...}），普通 LaTeX 的 p{} 不接受
+    带括号的 dim 表达式（\\dimexpr 求值会被括号破坏为 0，导致表格列重叠）。
+    改为 e-TeX 的 \\dimexpr{f}\\linewidth - {f*N}\\tabcolsep\\relax。
+    与 make_single 的修复保持一致。
+    """
+    return re.sub(
+        r"p\{\(\\linewidth - (\d+)\\tabcolsep\) \* \\real\{([0-9.]+)\}\}",
+        lambda m: (
+            f"p{{\\dimexpr{float(m.group(2)):.4f}\\linewidth "
+            f"- {float(m.group(2)) * int(m.group(1)):.4f}\\tabcolsep\\relax}}"
+        ),
+        latex,
+    )
+
+
 def md_to_latex(md_text: str) -> str:
     """用 pandoc 把单个 md 块转 LaTeX 片段（带缓存）。"""
     if md_text in MD_TO_LATEX_CACHE:
@@ -159,6 +211,7 @@ def md_to_latex(md_text: str) -> str:
         raise RuntimeError(f"pandoc 块转换失败：{result.stderr}")
     out = result.stdout.strip()
     out = _longtable_to_tabular(out)
+    out = _fix_table_widths(out)
     MD_TO_LATEX_CACHE[md_text] = out
     return MD_TO_LATEX_CACHE[md_text]
 
@@ -186,7 +239,8 @@ def blocks_to_paracol(pairs: list[tuple[dict, dict]], resource_dir: Path | None 
         t = en["type"]
         if t == "heading":
             level = en.get("level", 1)
-            cmd = {1: "\\section", 2: "\\subsection", 3: "\\subsubsection"}.get(level, "\\subsubsection")
+            # 用 * 版标题命令：中文标题本身已含编号（如「1. 引言」），避免双编号
+            cmd = {1: "\\section*", 2: "\\subsection*", 3: "\\subsubsection*"}.get(level, "\\subsubsection*")
             zh_title = re.sub(r"^#{1,6}\s+", "", zh["content"])
             # 跨栏章节标题：leftcolumn* + rightcolumn*（同步对齐）
             out.append(f"\\begin{{leftcolumn*}}\n{cmd}{{{zh_title}}}\n\\end{{leftcolumn*}}\n")
@@ -208,8 +262,10 @@ def blocks_to_paracol(pairs: list[tuple[dict, dict]], resource_dir: Path | None 
 
 def render_bilingual_pdf(en_md: Path, zh_md: Path, resource_dir: Path, output_pdf: Path, template_dir: Path) -> Path:
     """生成对开双栏对照 PDF，返回输出路径。"""
-    en_blocks = split_blocks(en_md.read_text(encoding="utf-8"))
-    zh_blocks = split_blocks(zh_md.read_text(encoding="utf-8"))
+    en_text = strip_toc_section(en_md.read_text(encoding="utf-8"))
+    zh_text = strip_toc_section(zh_md.read_text(encoding="utf-8"))
+    en_blocks = split_blocks(en_text)
+    zh_blocks = split_blocks(zh_text)
     pairs, errors = pair_blocks(en_blocks, zh_blocks)
     if pairs is None:
         raise ValueError("块配对失败：\n" + "\n".join(errors))
@@ -235,12 +291,12 @@ def render_bilingual_pdf(en_md: Path, zh_md: Path, resource_dir: Path, output_pd
 
     for _ in range(2):
         result = subprocess.run(
-            ["xelatex", "-interaction=nonstopmode", "-halt-on-error",
+            ["lualatex", "-interaction=nonstopmode", "-halt-on-error",
              f"-output-directory={output_pdf.parent.resolve()}", str(tex_path.name)],
             cwd=tex_path.parent, capture_output=True, text=True, encoding="utf-8",
         )
         if result.returncode != 0:
-            raise RuntimeError(f"xelatex 编译失败：\n{result.stdout[-2500:]}")
+            raise RuntimeError(f"lualatex 编译失败：\n{result.stdout[-2500:]}")
     if not output_pdf.exists():
         raise FileNotFoundError(f"未生成 PDF：{output_pdf}")
     return output_pdf
@@ -258,8 +314,9 @@ def _extract_meta(md_text: str) -> tuple[str, str]:
         if line.strip() and "<sup>" in line and not line.startswith("#") and not authors:
             authors = line.strip()
     # 作者行 HTML 上标/下标转 LaTeX 命令（避免 <sup> 作为非法 LaTeX 进 \author{}）
-    authors = re.sub(r"<sup>(.*?)</sup>", r"\textsuperscript{\1}", authors)
-    authors = re.sub(r"<sub>(.*?)</sub>", r"\textsubscript{\1}", authors)
+    # 注意：re.sub 替换串中 \t 会被解释为制表符，必须用 \\ 转义保留反斜杠
+    authors = re.sub(r"<sup>(.*?)</sup>", r"\\textsuperscript{\1}", authors)
+    authors = re.sub(r"<sub>(.*?)</sub>", r"\\textsubscript{\1}", authors)
     return title, authors
 
 

@@ -2,6 +2,8 @@
 import re
 from pathlib import Path
 
+from .make_bilingual import strip_toc_section
+
 BLOCK_START = re.compile(r"^(#{1,6})\s|^\$\$|^```|^!\[|<table|^\|")
 
 
@@ -22,8 +24,10 @@ def _split_paragraphs(md_text: str) -> list[str]:
 
 def make_bilingual_md(en_md: Path, zh_md: Path, output_md: Path) -> Path:
     """生成左英右中两列对照 md。"""
-    en_blocks = _split_paragraphs(en_md.read_text(encoding="utf-8"))
-    zh_blocks = _split_paragraphs(zh_md.read_text(encoding="utf-8"))
+    en_text = strip_toc_section(en_md.read_text(encoding="utf-8"))
+    zh_text = strip_toc_section(zh_md.read_text(encoding="utf-8"))
+    en_blocks = _split_paragraphs(en_text)
+    zh_blocks = _split_paragraphs(zh_text)
     if len(en_blocks) != len(zh_blocks):
         raise ValueError(f"段落数不一致：英文 {len(en_blocks)} vs 中文 {len(zh_blocks)}")
 
@@ -34,12 +38,43 @@ def make_bilingual_md(en_md: Path, zh_md: Path, output_md: Path) -> Path:
             level = re.match(r"^#{1,6}", zh).group(0)
             en_title = re.sub(r"^#{1,6}\s+", "", en).strip()
             zh_title = re.sub(r"^#{1,6}\s+", "", zh).strip()
-            lines.append(f"{level} {zh_title}（{en_title}）")
+            # 若中文标题已含英文（如「摘要（Abstract）」「时空可组合性（Spatiotemporal
+            # Composability）的编程范式」），则不再重复拼英文，避免重复。判断分两层：
+            # ① 英文标题（去编号）规范化后整串已在中文标题中（如「Effects」∈「效应（Effects）」）；
+            # ② 中文标题内嵌的英文核心词已在英文标题中（如 zh「…（Spatiotemporal
+            #    Composability）…」的英文核心词 ⊆ en「A Programming Paradigm for …」）。
+            en_title_stripped = re.sub(r"^\d+(\.\d+)*\.?\s*", "", en_title).strip()
+            # 归一化后比较：忽略大小写/空白，且把源文的 OCR 拼写 efect 视同 effect，
+            # 否则「效应（Effects）（2.1. Efects）」会因拼写差异重复拼英文
+            def norm_heading(s: str) -> str:
+                return re.sub(r"\s+", "", s).lower().replace("efect", "effect")
+            zh_latin = re.sub(r"[^\x20-\x7e]", "", zh_title)
+            zh_latin_norm = norm_heading(zh_latin)
+            if en_title_stripped and (
+                norm_heading(en_title_stripped) in norm_heading(zh_title)
+                or (zh_latin_norm and zh_latin_norm in norm_heading(en_title_stripped))
+            ):
+                merged_title = zh_title
+            else:
+                merged_title = f"{zh_title}（{en_title}）"
+            lines.append(f"{level} {merged_title}")
             lines.append("")
             continue
         # 公式块：居中显示
         if en.startswith("$$") or zh.startswith("$$"):
             lines.append(en)
+            lines.append("")
+            lines.append(zh)
+            lines.append("")
+            continue
+        # 表格块：源 pipe table（以 | 开头）原样输出为独立表格，英文表 + 中文表
+        # （markdown 无法嵌套表格做左右对照，故上下排列，保留两语各自表格结构）
+        if en.lstrip().startswith("|") or zh.lstrip().startswith("|"):
+            lines.append("**英文表**")
+            lines.append("")
+            lines.append(en)
+            lines.append("")
+            lines.append("**中文表**")
             lines.append("")
             lines.append(zh)
             lines.append("")

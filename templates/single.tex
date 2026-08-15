@@ -6,9 +6,13 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{longtable}
+\usepackage{array} % pandoc 输出的 >{\raggedright\arraybackslash} 列前缀依赖 array 宏包
 \newcounter{none} % for unnumbered tables（pandoc \LTcaptype{none} 技巧配套）
 \usepackage{hyperref}
 \hypersetup{hidelinks}
+% pandoc pipe table 列宽用 \real{...}，用 xfp 的 \fpeval 提供（make_single.py 会转为 \dimexpr 表达式）
+\usepackage{xfp}
+\providecommand{\real}[1]{\fpeval{#1}}
 % 裸 Unicode 数学符号 → 数学命令（xelatex 正文混排缺字体时会崩 map_char_to_glyph）
 \usepackage{newunicodechar}
 \newunicodechar{Γ}{\ensuremath{\Gamma}}
@@ -55,6 +59,7 @@
 \newunicodechar{←}{\ensuremath{\leftarrow}}
 \newunicodechar{⟶}{\ensuremath{\longrightarrow}}
 \newunicodechar{−}{\ensuremath{-}}
+\newunicodechar{′}{\ensuremath{'}}
 \newunicodechar{ℎ}{\ensuremath{\hbar}}
 % pandoc 输出需要的辅助宏（与 pandoc 默认模板同款）
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
