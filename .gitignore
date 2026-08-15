@@ -7,12 +7,19 @@ __pycache__/
 .venv/
 venv/
 
-# 输出产物
-*.pdf
-out/
-_output/
-temp/
-
 # 测试生成物
 tests/sample/out/
 .pytest_cache/
+
+# 输出产物：默认全部忽略；example/ 下的示例输出（四态产物 PDF/MD）提交展示
+*.pdf
+*.tex
+*.aux
+*.log
+*.toc
+!example/*_bilingual.pdf
+!example/*_single.pdf
+# 示例输入论文 PDF 不入库（版权/体积，README 提供 arXiv 链接）
+example/input_origin.pdf
+_output/
+temp/

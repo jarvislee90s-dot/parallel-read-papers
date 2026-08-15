@@ -36,9 +36,11 @@ description: 把英文论文 PDF 翻译为中文，并按需生成四态输出�
 
 ### 3. 生成输出
 ```bash
-python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir out
+python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir example
 ```
 - 默认输出：`zh_md + bilingual_pdf + single_pdf`（对照版 md 需显式加入 `bilingual_md`）
+- **输出命名**：自动取论文全文标题 slug 作前缀（提取失败回退输入文件名），如
+  `<标题slug>_zh.md`、`<标题slug>_bilingual.pdf`、`<标题slug>_single.pdf`、`<标题slug>_bilingual.md`
 - 对开双栏：**每栏自成一体**——左栏为完整英文原文（标题/作者/章节标题/正文/公式/图/表），
   右栏为完整中文译文（全部翻译）；段落首行对齐、两栏互相等待、图表各归各语言；单栏：还原原论文排版
 

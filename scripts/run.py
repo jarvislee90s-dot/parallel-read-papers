@@ -63,21 +63,26 @@ def run(source: str | Path, outputs: list[str], out_dir: Path, zh_md: Path | Non
                 f"未找到翻译产物 {zh_md_path}。请先按 SKILL.md 流程将 {full_md.name} 翻译为 full_zh.md。"
             )
 
+    # 输出命名：优先论文全文标题 slug（如 a-programming-paradigm-...），
+    # 提取失败回退输入文件名 stem
+    src_name = Path(source).stem if not Path(source).is_dir() else Path(source).name
+    base = make_bilingual.paper_slug(full_md.read_text(encoding="utf-8"), fallback=src_name)
+
     results: dict[str, Path] = {}
     if "zh_md" in outputs:
-        dst = out_dir / "full_zh.md"
+        dst = out_dir / f"{base}_zh.md"
         shutil.copy2(zh_md_path, dst)
         results["zh_md"] = dst
     if "bilingual_pdf" in outputs:
-        pdf = out_dir / "full_bilingual.pdf"
+        pdf = out_dir / f"{base}_bilingual.pdf"
         make_bilingual.render_bilingual_pdf(full_md, zh_md_path, resource_dir, pdf, TEMPLATES_DIR)
         results["bilingual_pdf"] = pdf
     if "single_pdf" in outputs:
-        pdf = out_dir / "full_zh.pdf"
+        pdf = out_dir / f"{base}_single.pdf"
         make_single.render_single_pdf(zh_md_path, resource_dir, pdf, TEMPLATES_DIR)
         results["single_pdf"] = pdf
     if "bilingual_md" in outputs:
-        md = out_dir / "full_bilingual.md"
+        md = out_dir / f"{base}_bilingual.md"
         make_bilingual_md.make_bilingual_md(full_md, zh_md_path, md)
         results["bilingual_md"] = md
     return results
@@ -87,7 +92,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="PaperTranslate 统一入口")
     parser.add_argument("--source", required=True, help="PDF 路径或含 full.md 的目录")
     parser.add_argument("--outputs", default="", help="逗号分隔：zh_md,bilingual_pdf,single_pdf,bilingual_md（默认前三个）")
-    parser.add_argument("--out-dir", default="out", help="输出目录（默认 ./out）")
+    parser.add_argument("--out-dir", default="example", help="输出目录（默认 ./example）")
     parser.add_argument("--zh-md", default=None, help="指定翻译产物路径（默认 <源目录>/full_zh.md）")
     args = parser.parse_args()
 

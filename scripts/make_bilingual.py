@@ -266,6 +266,27 @@ def _math_latex(content: str) -> str:
     return f"\\begin{{{env}}}\n{inner}\n\\end{{{env}}}"
 
 
+def paper_slug(md_text: str, fallback: str = "paper") -> str:
+    """从论文 md 提取标题并转文件名 slug（用于四态输出命名）。
+
+    标题取第一个 `# ` 行；slug 保留中英文/数字（\\w + CJK），其余字符转 `-`，
+    连续 `-` 合并、去首尾、转小写。提取失败回退 fallback（一般为输入文件名 stem）。
+    例："A Programming Paradigm for Spatiotemporal Composability"
+      → "a-programming-paradigm-for-spatiotemporal-composability"
+    """
+    title = ""
+    for line in md_text.splitlines():
+        m = re.match(r"^#\s+(.+)$", line.strip())
+        if m:
+            title = m.group(1).strip()
+            break
+    if not title:
+        return fallback
+    slug = re.sub(r"[^\w\u4e00-\u9fff]+", "-", title, flags=re.UNICODE)
+    slug = re.sub(r"-+", "-", slug).strip("-").lower()
+    return slug or fallback
+
+
 def _image_latex(content: str, resource_dir: Path) -> str:
     """图片块 → \\includegraphics（宽度撑满栏宽）。"""
     m = re.search(r"!\[[^\]]*\]\(([^)]+)\)", content)
