@@ -94,3 +94,34 @@ def test_pair_blocks_list_paragraph_compat():
     zh = mb.split_blocks("para one\n\nitem a, item b（翻译成段落）\n")
     pairs, errors = mb.pair_blocks(en, zh)
     assert errors == []
+
+
+def test_html_table_to_pipe_basic():
+    html = "<table><tr><td>rule</td><td>$\\theta$</td></tr><tr><td>O-Insert</td><td>undefined</td></tr></table>"
+    pipe = mb.html_table_to_pipe(html)
+    lines = pipe.split("\n")
+    assert lines[0] == "| rule | $\\theta$ |"
+    assert lines[1] == "| --- | --- |"
+    assert lines[2] == "| O-Insert | undefined |"
+
+
+def test_html_table_to_pipe_entity_and_pipe():
+    html = "<table><tr><td>a&#x27;s</td><td>x | y</td></tr></table>"
+    pipe = mb.html_table_to_pipe(html)
+    assert "a's" in pipe
+    assert "x \\| y" in pipe
+
+
+def test_html_table_to_pipe_multiline():
+    html = "<table>\n<tr><td>h1</td><td>h2</td></tr>\n<tr><td>a</td><td>b</td></tr>\n</table>"
+    pipe = mb.html_table_to_pipe(html)
+    assert pipe.count("\n") == 2  # 表头 + 分隔行 + 1 数据行
+    assert "| h1 | h2 |" in pipe
+
+
+def test_md_to_latex_converts_html_table():
+    html = "<table><tr><td>a</td><td>b</td></tr><tr><td>1</td><td>2</td></tr></table>"
+    latex = mb.md_to_latex(html)
+    # pandoc 对 pipe table 输出多列 tabular，而不是单列堆叠
+    assert "\\begin{tabular}" in latex
+    assert "a" in latex and "b" in latex

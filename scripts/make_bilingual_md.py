@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 
-from .make_bilingual import strip_toc_section
+from .make_bilingual import html_table_to_pipe, strip_toc_section
 
 BLOCK_START = re.compile(r"^(#{1,6})\s|^\$\$|^```|^!\[|<table|^\|")
 
@@ -67,16 +67,27 @@ def make_bilingual_md(en_md: Path, zh_md: Path, output_md: Path) -> Path:
             lines.append(zh)
             lines.append("")
             continue
-        # 表格块：源 pipe table（以 | 开头）原样输出为独立表格，英文表 + 中文表
-        # （markdown 无法嵌套表格做左右对照，故上下排列，保留两语各自表格结构）
-        if en.lstrip().startswith("|") or zh.lstrip().startswith("|"):
+        # 表格块：源 pipe table（| 开头）或 HTML <table> 原样输出为独立表格，
+        # 英文表 + 中文表（markdown 无法嵌套表格做左右对照，故上下排列；
+        # HTML 表先转 pipe table，避免被拍平）
+        if en.lstrip().startswith("|") or zh.lstrip().startswith("|") \
+                or en.lstrip().lower().startswith("<table") or zh.lstrip().lower().startswith("<table"):
+            def _norm_table(blk: str) -> str:
+                if re.search(r"<table", blk, re.I):
+                    return re.sub(
+                        r"<table>.*?</table>",
+                        lambda m: html_table_to_pipe(m.group(0)),
+                        blk,
+                        flags=re.S | re.I,
+                    )
+                return blk
             lines.append("**英文表**")
             lines.append("")
-            lines.append(en)
+            lines.append(_norm_table(en))
             lines.append("")
             lines.append("**中文表**")
             lines.append("")
-            lines.append(zh)
+            lines.append(_norm_table(zh))
             lines.append("")
             continue
         # 其他：两列表格

@@ -160,6 +160,36 @@ def pair_blocks(en_blocks: list[dict], zh_blocks: list[dict]) -> tuple[list[tupl
 
 MD_TO_LATEX_CACHE: dict[str, str] = {}
 
+_HTML_ENTITY = {
+    "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"',
+    "&#x27;": "'", "&#39;": "'", "&nbsp;": "\u00a0",
+}
+
+
+def html_table_to_pipe(table_html: str) -> str:
+    """HTML `<table>` → markdown pipe table。
+
+    背景：MinerU 源的表格常是 HTML `<table>`；pandoc 把它转 LaTeX 时会
+    **压成单列堆叠**（列宽信息丢失），而 pipe table 能正确转多列 tabular。
+    本函数在交 pandoc 前把 HTML 表统一转成 pipe table，避免手工改源。
+    支持：多行 `<tr>`/`<td>`、HTML 实体（&#x27;/&amp;/&lt;/&gt; 等）、
+    单元格内 `|` 转义为 `\\|`（防止破坏 pipe 语法）。
+    """
+    rows = re.findall(r"<tr>(.*?)</tr>", table_html, re.S)
+    out: list[str] = []
+    for ri, row in enumerate(rows):
+        cells = re.findall(r"<td>(.*?)</td>", row, re.S)
+        if not cells:
+            continue
+        cells = [re.sub(r"\s+", " ", c).strip() for c in cells]
+        for ent, ch in _HTML_ENTITY.items():
+            cells = [c.replace(ent, ch) for c in cells]
+        cells = [c.replace("|", "\\|") for c in cells]
+        out.append("| " + " | ".join(cells) + " |")
+        if ri == 0:
+            out.append("| " + " | ".join(["---"] * len(cells)) + " |")
+    return "\n".join(out)
+
 
 def _longtable_to_tabular(latex: str) -> str:
     """把 pandoc 输出的 longtable（含 LTcaptype 包装）转为 tabular。
@@ -200,9 +230,20 @@ def _fix_table_widths(latex: str) -> str:
 
 
 def md_to_latex(md_text: str) -> str:
-    """用 pandoc 把单个 md 块转 LaTeX 片段（带缓存）。"""
+    """用 pandoc 把单个 md 块转 LaTeX 片段（带缓存）。
+
+    若块内是 HTML `<table>`，先转 pipe table（pandoc 会把 HTML 表压成
+    单列堆叠，pipe table 才能得到多列 tabular）。
+    """
     if md_text in MD_TO_LATEX_CACHE:
         return MD_TO_LATEX_CACHE[md_text]
+    if re.search(r"<table", md_text, re.I):
+        md_text = re.sub(
+            r"<table>.*?</table>",
+            lambda m: html_table_to_pipe(m.group(0)),
+            md_text,
+            flags=re.S | re.I,
+        )
     result = subprocess.run(
         ["pandoc", "-f", "markdown", "-t", "latex", "--no-highlight", "-"],
         input=md_text, capture_output=True, text=True, encoding="utf-8",

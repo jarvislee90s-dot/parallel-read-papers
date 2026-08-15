@@ -4,21 +4,33 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .make_bilingual import html_table_to_pipe
+
 
 def zh_md_to_tex(zh_md: Path, resource_dir: Path) -> str:
     """用 pandoc 把中文 md 转 LaTeX body（保留公式 \\tag 编号）。
 
+    转换前先做 HTML `<table>` → pipe table（pandoc 会把 HTML 表压成
+    单列堆叠，pipe table 才能得到多列 tabular），避免手工改源。
     后处理：
     1. 去掉 pandoc 默认模板输出的 title block + maketitle（与 single.tex 的重复）
     2. 图片加 width=\\linewidth,keepaspectratio（避免原图超行宽被裁切）
     """
+    text = zh_md.read_text(encoding="utf-8")
+    if re.search(r"<table", text, re.I):
+        text = re.sub(
+            r"<table>.*?</table>",
+            lambda m: html_table_to_pipe(m.group(0)),
+            text,
+            flags=re.S | re.I,
+        )
     cmd = [
         "pandoc", "-f", "markdown", "-t", "latex",
         "--resource-path", str(resource_dir),
         "--no-highlight",
-        str(zh_md),
+        "-",
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+    result = subprocess.run(cmd, input=text, capture_output=True, text=True, encoding="utf-8")
     if result.returncode != 0:
         raise RuntimeError(f"pandoc 转换失败：{result.stderr}")
     body = result.stdout

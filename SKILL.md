@@ -18,8 +18,13 @@ description: 把英文论文 PDF 翻译为中文，并按需生成四态输出�
 - 用 `python -m scripts.validate <full.md> <full_zh.md> --image-dir <dir>` 建立基线（先仅对源做检查）
 - 统计源 md 行数、图片引用数（`grep -c '!\[.*\](images/'`）
 - **乱码修复**：源 md 含 U+FFFD 的，翻译时按上下文推断修复（公式丢失变量/箭头、正文丢失符号）
-- **OCR 拼写还原**：源 md 的系统性错字（如 "efect"→"effect"、"coefect"→"coeffect"）按语义识别还原
-- **公式清洗**：合并断裂 `$$`、转义内联 `$` 中裸下划线、去多余 `\begin{array}` 包装
+- **OCR 拼写还原**：源 md 的系统性错字按语义识别还原，**注意含大写形式**：
+  `efect→effect`、`coefect→coeffect`、`Efect→Effect`、`Coefect→Coeffect`、
+  `targe→target`、`effec→effect`、`difering→differing`；References 段的引用标题/URL 保留原文
+- **公式清洗**：合并断裂 `$$`、转义内联 `$` 中裸下划线、去多余 `\begin{array}` 包装；
+  **`$ `（`$` 后跟空格）会被 pandoc 转义为 `\$`**（导致 `\mathfrak`/`\mathrm` 进文本模式报错），
+  需去掉空格；**array 声明列数不得少于单元格数**（否则 `Extra alignment tab`），
+  如 `{r c l r c l}` 配 7 个单元格要补成 `{r c l r c l c}`
 - 构建**术语表**（见 §术语表），确保全文同词同译
 
 ### 2. 翻译（agent 自己执行，逐段）
@@ -34,7 +39,8 @@ description: 把英文论文 PDF 翻译为中文，并按需生成四态输出�
 python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir out
 ```
 - 默认输出：`zh_md + bilingual_pdf + single_pdf`（对照版 md 需显式加入 `bilingual_md`）
-- 对开双栏：左英文、右中文、段落对齐、图表各归各语言；单栏：还原原论文排版
+- 对开双栏：**每栏自成一体**——左栏为完整英文原文（标题/作者/章节标题/正文/公式/图/表），
+  右栏为完整中文译文（全部翻译）；段落首行对齐、两栏互相等待、图表各归各语言；单栏：还原原论文排版
 
 ### 4. 校验
 ```bash
@@ -70,6 +76,37 @@ python -m scripts.validate full.md full_zh.md --image-dir <目录> [--term-file 
 | preservation / progress / confluence | 保真 / 进展性 / 合流性 |
 
 原则：全篇同一术语同一译法；专有名词保留英文；首次出现中英对照。
+
+## 常见坑与修复（踩坑记录）
+
+按踩坑频率/危害排序，脚本已自动处理的部分标注「脚本自动」：
+
+1. **paracol 同步语义（最易踩）**：`leftcolumn*`/`rightcolumn*`（星号=同步）的同步点
+   设在「最深一栏底部」。**右栏必须用非同步 `rightcolumn`**——若用 `rightcolumn*`，
+   中文块会被放到左栏英文块底部、整体低一行，产生「英文标题行1、中文标题行2、
+   英文作者行3、中文作者行4」的中英文交错。正确结构（make_bilingual.py 已实现）：
+   `\begin{leftcolumn*} 英文 \end{leftcolumn*}` + `\begin{rightcolumn} 中文 \end{rightcolumn}`。
+2. **xelatex 崩溃 `map_char_to_glyph`**：正文裸 Unicode 数学符号（CJK 文本中的 `∘`/`∂`/`Γ` 等）
+   触发 xelatex 内部错误 → 对开双栏改用 **lualatex**（make_bilingual.py 已用；ctex+fontspec
+   中文渲染一致）。lualatex 日志为 **UTF-16 编码**，调试读日志需 `decode('utf-16-le')`。
+3. **pandoc pipe table 列宽 `p{(\linewidth-N\tabcolsep)*\real{f}}`**：普通 LaTeX 不接受
+   LaTeX3 的 `\real`，lualatex 报 `Missing number / Illegal unit`（两处大表曾出 ~230 错）
+   → 转 `p{\dimexpr{f}\linewidth-{fN}\tabcolsep\relax}`（脚本 `_fix_table_widths` 已自动）。
+4. **HTML `<table>` 被 pandoc 压成单列堆叠**：pandoc 把 HTML 表转 LaTeX 时丢列宽，
+   5 列表变成竖排文本 → 需先转 pipe table（脚本 `html_table_to_pipe` 已自动；MinerU 源的
+   表格常见 HTML 形式，本坑使任意论文源可直接使用，无需手工改源）。
+5. **模板注释不得含占位符 `%%BODY%%`**：`template.replace("%%BODY%%", body)` 会把整段 body
+   塞进注释行，导致 `\begin{document} ended by \end{leftcolumn*}`（bilingual.tex 曾踩）。
+6. **PDF 文件被 Chrome/Acrobat 锁定**：lualatex 报 `I can't write on file ...pdf` →
+   改用新输出名生成或让用户关闭查看器（Windows 常见，handoff 有记录）。
+7. **断裂数学 `$ {`（`$` 后跟空格）**：pandoc 把 `$ ` 转义为 `\$`，`\mathfrak`/`\mathrm`
+   进文本模式报 `allowed only in math mode` → 源清洗时去掉 `$` 后空格。
+8. **array 列数不匹配**：声明列数 < 单元格数 → `Extra alignment tab has been changed to \cr`，
+   需补齐列数声明（本论文 effect 数组曾 `{r c l r c l}` 配 7 单元格）。
+9. **OCR 错字含大写**：小写替换后漏掉句首/标题的大写形式（`Efect`/`Coefect`/`Targe`），
+   需大小写都处理（见 §准备·OCR 拼写还原）。
+10. **作者上标 `extsuperscript` 显示成文字**：`re.sub` 替换串里 `\t` 会被解释为制表符
+    吞掉反斜杠 → 替换串必须写 `r"\\textsuperscript{...}"`（双反斜杠）。
 
 ## 文件结构
 ```
