@@ -2,6 +2,8 @@
 
 Translate English paper PDFs into Chinese with **4 output formats** — the highlight being a **side-by-side bilingual PDF**: the English original and Chinese translation printed in parallel columns, paragraph-aligned, for comfortable side-by-side reading.
 
+![Side-by-side bilingual preview](example/bilingual-preview.png)
+
 ## Four Output Formats
 
 | Output | File | Description |
@@ -14,8 +16,6 @@ Translate English paper PDFs into Chinese with **4 output formats** — the high
 > Naming: English-related outputs (bilingual PDF, bilingual Markdown) use the **English title** slug; Chinese-related outputs (Chinese Markdown, single-column PDF) use the **Chinese title** slug (e.g. `a-programming-paradigm-for-spatiotemporal-composability_bilingual.pdf`, `时空可组合性-spatiotemporal-composability-的编程范式_zh.md`); falls back to the input filename when extraction fails.
 
 ## The Side-by-Side PDF (Core Feature)
-
-![Side-by-side bilingual preview](example/bilingual-preview.png)
 
 - **Each column is self-contained**: left = complete English original (title, authors, section headings, body, equations, figures, tables); right = complete Chinese translation of everything
 - **Paragraph-aligned**: every EN/CN paragraph pair starts at the same height; when one side is longer, the other leaves blank space and waits — first lines always align
