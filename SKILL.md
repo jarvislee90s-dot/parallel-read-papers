@@ -36,9 +36,15 @@ description: 把英文论文 PDF 翻译为中文，并按需生成四态输出�
 
 ### 3. 生成输出
 ```bash
-python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir example
+# ① 生成到过程目录 work/<论文slug>/（含成品与编译中间物；目录名与四态成品文件名前缀对应）
+python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir work/<论文slug>
+# ② 发布 4 个成品到正式输出目录 output/ 与示例目录 example/
+copy work/<论文slug>/*_zh.md work/<论文slug>/*_single.pdf work/<论文slug>/*_bilingual.pdf work/<论文slug>/*_bilingual.md output\ example\
 ```
 - 默认输出：`zh_md + bilingual_pdf + single_pdf`（对照版 md 需显式加入 `bilingual_md`）
+- **目录约定**：`output/` = 正式输出（仅四态成品）；`work/<论文slug>/` = 过程文件（full.md、
+  full_zh.md、images/ 与 .tex/.aux/.log 等，目录名与成品文件名前缀对应）；`example/` = 示例
+  展示（仅成品，与 output 一致）
 - **输出命名**：英文相关输出取**英文论文标题** slug，中文相关输出取**中文标题** slug
   （均提取失败时回退输入文件名 stem），如：
   `<英文标题>_bilingual.pdf`、`<英文标题>_bilingual.md`、`<中文标题>_zh.md`、`<中文标题>_single.pdf`
@@ -110,13 +116,44 @@ python -m scripts.validate full.md full_zh.md --image-dir <目录> [--term-file 
    需大小写都处理（见 §准备·OCR 拼写还原）。
 10. **作者上标 `extsuperscript` 显示成文字**：`re.sub` 替换串里 `\t` 会被解释为制表符
     吞掉反斜杠 → 替换串必须写 `r"\\textsuperscript{...}"`（双反斜杠）。
+11. **luaotfload `no writeable cache path`（Windows 编译崩溃，本次遇到）**：lualatex 启动
+    时 luaotfload 的 `file.is_writable()` 对**绝对路径一律返回 false**（LuaFileSystem 行为），
+    默认缓存（`texlive/.../texmf-var` 与 `%USERPROFILE%\.texlive2025\texmf-var`）常不可写 →
+    崩溃。规避：`make_bilingual.py` 编译时注入相对路径 `TEXMFCACHE=luatex-cache`
+    （已在编译 cwd 下建缓存，脚本已自动处理，无需手动设）。手动排查：
+    `kpsewhich -var-value TEXMFCACHE` 验证展开路径；注意**设绝对路径无效**，必须相对路径。
+12. **MinerU HTML 表格带属性导致英文表空白（本次 bug 根因）**：`<td rowspan=1 colspan=1>` 等
+    属性使 `html_table_to_pipe` 的旧正则 `r"<td>(.*?)</td>"` 提取失败 → 整表转空 →
+    双语 PDF 左栏（英文）与双语 md 的「英文表」空白，而中文表正常（译文是 pipe table 不经
+    该函数）。已修正正则 `<td[^>]*>`/`<tr[^>]*>`（支持属性）。若再遇英文表空白，优先检查该函数。
+13. **中英块配对/段落对齐要求两侧结构完全一致**：`make_bilingual.pair_blocks`（块级）与
+    `make_bilingual_md._split_paragraphs`（空行切分）都要求 EN/ZH 结构一致，否则报
+    「块数量不一致」/「段落数不一致」。本次对齐踩坑：
+    - 算法伪代码：源为普通缩进文本、译文为 ``` 代码块 → 需给英文源算法加 ``` 围栏，
+      且围栏前必须有空行分隔正文段（否则正文段被并入）；
+    - 图注拆行：源 "(b)…" 与 "Figure 8…" 同行/跨行由空行决定，两侧空行分布须一致
+      （本论文图 8 曾因 ZH 拆两段、EN 一段而错位）；
+    - MinerU 偶发丢失小节标题的 `##`（如 VI 章 "A. Ensuring…"）→ 补 `##` 使其成为 heading；
+    - References 段若经 PowerShell 写入会带 BOM，破坏 `## REFERENCES` 标题识别 → md 一律
+      用 Python 读写；
+    - 表格「标题行+HTML 表」无空行合并成 1 段，译文「标题+pipe 表」是 2 段 → 给英文源
+      表格标题后补空行（8 个表格即 8 段）。
+    诊断：`split_blocks()+pair_blocks()` 对比块数与类型；`_split_paragraphs()` 对比段数。
+14. **PowerShell 写中文 UTF-8 会损坏（mojibake + 私有区字符 U+E000）**：`Set-Content`/
+    `Get-Content` 读写中文 md 会双重编码损坏（本会话 single 版曾因此重做）。合并/编辑中文
+    md 一律用 Python `Path.write_text(encoding="utf-8")`，禁用 PowerShell 文本合并。
 
 ## 文件结构
 ```
 PaperTranslate/
 ├── SKILL.md
 ├── README.md
-├── config/.env.example      # MINERU_API_TOKEN（复制为 .env）
+├── output/                # 正式输出：四态成品（仅 PDF/MD，无中间物）
+├── work/                  # 过程文件：按 <论文slug>/ 分子目录（目录名与成品前缀对应）
+│   └── <论文slug>/        #   full.md、full_zh.md、full_en_clean.md、images/、.tex/.aux/.log 等
+├── example/               # 示例展示：两篇论文的四态成品 + bilingual-preview.png
+├── input/                 # 源论文 PDF（MinerU 解析产物通常并入 work/）
+├── config/.env.example    # MINERU_API_TOKEN（复制为 .env）
 ├── scripts/
 │   ├── run.py               # 统一入口 --outputs
 │   ├── mineru_convert.py    # MinerU API 解析
@@ -134,3 +171,5 @@ PaperTranslate/
 ## 依赖
 - Python 3.10+（`pip install -r requirements.txt`）
 - pandoc、TeX Live（中文单栏用 xelatex + ctex；对开双栏用 **lualatex** + ctex + paracol，见 `make_bilingual.py` 说明）、中文字体
+- lualatex 需 luaotfload 可写缓存：脚本已自动注入相对路径 `TEXMFCACHE=luatex-cache`
+  （Windows 下绝对路径缓存不可写，见坑 11），无需手动配置。

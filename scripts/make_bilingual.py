@@ -5,6 +5,7 @@
 map_char_to_glyph" 内部崩溃，lualatex 无此问题且对中文（ctex + fontspec）
 渲染一致。
 """
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -174,11 +175,15 @@ def html_table_to_pipe(table_html: str) -> str:
     本函数在交 pandoc 前把 HTML 表统一转成 pipe table，避免手工改源。
     支持：多行 `<tr>`/`<td>`、HTML 实体（&#x27;/&amp;/&lt;/&gt; 等）、
     单元格内 `|` 转义为 `\\|`（防止破坏 pipe 语法）。
+
+    注意：MinerU 的 HTML 表格单元格几乎都带属性（`<td rowspan=1 colspan=1>`），
+    正则必须用 `<tr[^>]*>`/`<td[^>]*>` 才能匹配；旧版 `<td>` 不匹配带属性单元格，
+    会整表提取为空（双语 PDF/md 英文表格空白的根因）。
     """
-    rows = re.findall(r"<tr>(.*?)</tr>", table_html, re.S)
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", table_html, re.S)
     out: list[str] = []
     for ri, row in enumerate(rows):
-        cells = re.findall(r"<td>(.*?)</td>", row, re.S)
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
         if not cells:
             continue
         cells = [re.sub(r"\s+", " ", c).strip() for c in cells]
@@ -396,11 +401,17 @@ def render_bilingual_pdf(en_md: Path, zh_md: Path, resource_dir: Path, output_pd
         dst_images = tex_path.parent / "images"
         shutil.copytree(resource_dir / "images", dst_images, dirs_exist_ok=True)
 
+    # luaotfload 在 Windows 上对绝对路径的 file.is_writable 一律返回 false，
+    # 默认缓存（texlive 系统目录 / %USERPROFILE%\.texlive2025）常不可写，会崩
+    # "no writeable cache path"；注入相对路径 TEXMFCACHE（在编译 cwd 下建缓存）
+    # 可绕过。仅进程级注入，不改系统配置。
+    lua_env = {**os.environ, "TEXMFCACHE": "luatex-cache", "TEXMFVAR": "luatex-cache"}
     for _ in range(2):
         result = subprocess.run(
             ["lualatex", "-interaction=nonstopmode", "-halt-on-error",
              f"-output-directory={output_pdf.parent.resolve()}", str(tex_path.name)],
             cwd=tex_path.parent, capture_output=True, text=True, encoding="utf-8",
+            env=lua_env,
         )
         if result.returncode != 0:
             raise RuntimeError(f"lualatex 编译失败：\n{result.stdout[-2500:]}")

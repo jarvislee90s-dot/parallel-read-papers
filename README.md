@@ -26,9 +26,11 @@
 
 ## 示例
 
-`example/` 目录内置了一篇真实论文的完整示例（输入 + 四态输出），可直接打开对照版 PDF 体验效果：
-- 输入：`input_full.md`（英文原文 md）
-- 输出：`a-programming-paradigm-for-spatiotemporal-composability_bilingual.pdf` 等 4 个文件
+`example/` 目录内置两篇真实论文的四态成品，可直接打开对照版 PDF 体验效果：
+- `a-programming-paradigm-for-spatiotemporal-composability_bilingual.pdf`（对开双栏示例）
+- `fire-flyer-ai-hpc-a-cost-effective-software-hardware-co-design-for-deep-learning_bilingual.pdf`
+
+正式交付产物统一在 `output/`，过程文件（MinerU 解析、翻译稿、编译中间物）在 `work/<论文slug>/`，源论文 PDF 在 `input/`。
 
 ## 安装
 
@@ -53,7 +55,10 @@ python -m scripts.run --source <paper.pdf> --outputs zh_md
 
 ### 3. 生成四态输出
 ```bash
-python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir example
+# ① 生成到过程目录 work/<论文slug>/（含成品与编译中间物）
+python -m scripts.run --source <目录或PDF> --outputs zh_md,bilingual_pdf,single_pdf,bilingual_md --out-dir work/<论文slug>
+# ② 发布 4 个成品到正式输出目录 output/ 与示例目录 example/
+copy work/<论文slug>/*_zh.md work/<论文slug>/*_single.pdf work/<论文slug>/*_bilingual.pdf work/<论文slug>/*_bilingual.md output\ example\
 ```
 默认输出前三种；对照版 md 需显式加入 `bilingual_md`。
 
@@ -69,11 +74,14 @@ FAIL 项必须为 0（公式闭合、HTML 标签、乱码、图片一致性）�
 parallel-read-papers/
 ├── SKILL.md                  # 方法论（5 阶段工作流、术语表、踩坑记录）
 ├── README.md / README.en.md
+├── output/                   # 正式输出：四态成品（仅 PDF/MD，无中间物）
+├── work/                     # 过程文件：按 <论文slug>/ 分目录（不入库）
+├── example/                  # 示例：两篇论文的四态成品 + 预览图
+├── input/                    # 源论文 PDF（不入库，README 提供 arXiv 链接）
 ├── config/.env.example       # MINERU_API_TOKEN 模板
 ├── scripts/                  # run / mineru_convert / validate / make_single / make_bilingual* / copy_images
 ├── templates/                # single.tex（单栏）、bilingual.tex（对开双栏 paracol）
-├── tests/                    # pytest 单测（29+ 项）
-└── example/                  # 真实论文示例：输入 + 四态输出
+└── tests/                    # pytest 单测（29+ 项）
 ```
 
 ## 许可

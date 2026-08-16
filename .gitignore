@@ -6,20 +6,35 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
 
 # 测试生成物
 tests/sample/out/
-.pytest_cache/
 
-# 输出产物：默认全部忽略；example/ 下的示例输出（四态产物 PDF/MD）提交展示
+# 源论文 PDF 与解析产物不入库（版权/体积；README 提供 arXiv 链接）
+input/
+
+# 过程文件与临时文件不入库（output/work 保留占位 .gitkeep）
+work/*
+!work/.gitkeep
+_output/
+temp/
+_parts/
+_validate_out*.txt
+luatex-cache/
+
+# 编译中间物默认忽略；四态成品例外（output/example 展示用）
 *.pdf
 *.tex
 *.aux
 *.log
+*.out
 *.toc
+!output/*_bilingual.pdf
+!output/*_single.pdf
+!output/*_bilingual.md
+!output/*_zh.md
 !example/*_bilingual.pdf
 !example/*_single.pdf
-# 示例输入论文 PDF 不入库（版权/体积，README 提供 arXiv 链接）
-example/input_origin.pdf
-_output/
-temp/
+!example/*_bilingual.md
+!example/*_zh.md
