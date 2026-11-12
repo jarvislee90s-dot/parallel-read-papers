@@ -35,6 +35,8 @@ luatex-cache/
 !output/*_bilingual.md
 !output/*_zh.md
 !example/*_bilingual.pdf
+# doc/ 下的对外分发成品例外（用户明确要求入库供下载）
+!doc/*.pdf
 !example/*_single.pdf
 !example/*_bilingual.md
 !example/*_zh.md
